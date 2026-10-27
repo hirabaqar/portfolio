@@ -1,0 +1,42 @@
+/* Course assistant (voice + text chat)
+   Change the chatbot colours here, in one place: */
+.va-panel,.va-fab{--va-panel:#1c1a19;--va-header:#101010;--va-bot:rgba(255,255,255,.1);--va-user:#e6b9a5;--va-user-text:#171312;--va-accent:#08555C;--va-button-text:#fff;--va-field:#ececec;--va-text:#f5eae4;--va-mic-on:#e53935}
+.va-fab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 20px 0 16px;border:0;border-radius:999px;background:var(--va-accent);color:var(--va-button-text);font:700 1rem "Space Grotesk",system-ui,sans-serif;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:transform .2s ease}
+.va-fab:hover{transform:translateY(-2px)}
+.va-fab[hidden],.va-panel[hidden]{display:none}
+.va-panel{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;width:min(400px,calc(100vw - 24px));height:min(640px,calc(100vh - 32px));height:min(640px,calc(100dvh - 32px));max-width:none;margin:0;padding:0;display:flex;flex-direction:column;background:var(--va-panel);color:var(--va-text);border:1px solid rgba(255,255,255,.28);border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;font-family:"Space Grotesk",system-ui,sans-serif}
+.va-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px;background:var(--va-header);border-bottom:1px solid rgba(255,255,255,.2)}
+.va-head strong{display:block;color:var(--va-accent);font-size:1.05rem}
+.va-head small{display:block;font-size:.78rem;opacity:.9;line-height:1.3}
+.va-tools{display:flex;gap:8px;align-items:center;flex:none}
+.va-speak{border:1px solid #08555C;background:#08555C;color:#fff;border-radius:999px;padding:6px 10px;font:600 .75rem "Space Grotesk",sans-serif;cursor:pointer}
+.va-close{width:36px;height:36px;border:0;border-radius:50%;background:#08555C;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}
+.va-log{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:flex;flex-direction:column;gap:10px}
+.va-msg{color:#fff;max-width:88%;padding:10px 14px;border-radius:16px;font-size:.98rem;line-height:1.45;overflow-wrap:anywhere}
+.va-bot{align-self:flex-start;background:var(--va-bot);border-bottom-left-radius:4px}
+.va-user{align-self:flex-end;background:var(--va-user);color:var(--va-user-text);border-bottom-right-radius:4px}
+.va-wa{align-self:flex-start;display:inline-flex;align-items:center;min-height:46px;padding:0 20px;border-radius:999px;background:#08555C;color:#fff;font-weight:700;text-decoration:none}
+.va-chips{display:flex;flex:none;flex-wrap:nowrap;gap:8px;padding:0 14px 8px;overflow-x:auto;scrollbar-width:thin}
+.va-chips:empty{display:none}
+.va-chip{flex:none;white-space:nowrap;border:1px solid var(--va-accent);background:#08555C;color:#fff;border-radius:999px;padding:7px 12px;font:600 .86rem "Space Grotesk",sans-serif;cursor:pointer}
+.va-chip:hover{background:#063f44}
+.va-status{min-height:1.3em;margin:0;padding:0 16px;font-size:.85rem;color:var(--va-accent)}
+.va-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.2)}
+.va-input{flex:1;min-width:0;min-height:46px;border:0;border-radius:999px;padding:0 16px;font:inherit;font-size:1rem;color:#000;background:var(--va-field)}
+.va-mic{flex:none;width:46px;height:46px;display:grid;place-items:center;border:0;border-radius:50%;background:var(--va-accent);color:var(--va-button-text);cursor:pointer}
+.va-mic.on{background:var(--va-mic-on);color:#fff;animation:va-pulse 1.2s ease-in-out infinite}
+.va-send{flex:none;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:var(--va-accent);color:var(--va-button-text);font:700 .95rem "Space Grotesk",sans-serif;cursor:pointer}
+.va-note{margin:0;padding:0 14px 12px;font-size:.74rem;opacity:.85;line-height:1.35}
+@keyframes va-pulse{50%{box-shadow:0 0 0 8px rgba(229,57,53,.25)}}
+@media (max-width:560px){.va-panel{right:0;left:0;bottom:0;width:100%;height:min(88vh,660px);height:min(88dvh,660px);border-radius:22px 22px 0 0}.va-fab span{display:none}.va-fab{padding:0 16px}}
+@media (prefers-reduced-motion:reduce){.va-fab,.va-mic.on{transition:none;animation:none}}
+
+.va-links{align-self:flex-start;display:flex;flex-wrap:wrap;gap:8px}
+.va-links a{display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;color:#171312;font-weight:700;font-size:.92rem;text-decoration:none}
+.va-links a[data-n="fiverr"]{background:#1dbf73;color:#04301a}
+.va-links a[data-n="github"]{background:#24292f;color:#fff}
+.va-links a[data-n="facebook"]{background:#1877f2;color:#fff}
+.va-links a[data-n="linkedin"]{background:#2196c4;color:#fff}
+.va-links a[data-n="youtube"]{background:#f00;color:#fff}
+.va-links a[data-n="instagram"]{background:linear-gradient(45deg,#fd9a1c,#e1306c 55%,#833ab4);color:#fff}
+.va-links a[data-n="whatsapp"]{background:#08555C;color:#fff}
