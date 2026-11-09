@@ -148,7 +148,7 @@
     ['requirements', /\b(requirement|requirements|need|needs|device|laptop|computer|pc|mobile|phone|tablet|zoom|literacy|skills|internet|prerequisite|prepare)\b/i],
     ['enroll', /\b(enrol|enroll|enrolment|enrollment|admission|dakhla|register|registration|join|apply|sign ?up)\b/i],
     ['course', /\b(course|curriculum|syllabus|topics|teach|learn|duration|how long|months?|content|canva)\b/i],
-    ['about', /\b(hira|baqar|teacher|instructor|tutor|trainer|who are you|who is|about|experience|fiverr|mentor)\b/i],
+    ['about', /\b(about (hira|baqar|the (teacher|instructor|tutor|trainer|mentor)|your (teacher|instructor|tutor))|tell me about (hira|baqar|her|the teacher)|who (is|are) (hira|baqar|she|the (teacher|instructor|tutor|trainer)|you|your (teacher|instructor|tutor))|(teacher|instructor|tutor|trainer|mentor)|experience|qualification|qualified)\b/i],
     ['contact', /\b(contact|whatsapp|number|email|call|reach|phone number)\b/i],
     ['greet', /^(hi|hello|hey|salam|assalam|assalamualaikum|assalam o alaikum|good (morning|afternoon|evening))\b/i]
   ];
@@ -319,7 +319,8 @@
         (this.state === 'confirm' && (YES.test(t) || NO.test(t))) ||
         (/^pay(Wa|Acct|Amt)$/.test(this.state) && /\d/.test(t)) ||
         (this.state === 'payConfirm' && (YES.test(t) || NO.test(t)));
-      if (key && ['batch', 'fee', 'age', 'requirements', 'about', 'course', 'contact', 'social'].indexOf(key) > -1 && !looksLikeAnswer && !(this.state === 'name' && t.split(/\s+/).length <= 3 && key === 'about')) {
+      var looksLikeQuestion = /\?\s*$|^(what|when|where|how|why|who|which|can|could|do|does|is|are|will|tell me|kab|kya|kitn|kaise)\b/i.test(t) || /^(about hira|next batch|requirements|age criteria|social media|how to enroll|fee|course fee|what’s next\?)$/i.test(t);
+      if (key && ['batch', 'fee', 'age', 'requirements', 'about', 'course', 'contact', 'social'].indexOf(key) > -1 && !looksLikeAnswer && looksLikeQuestion) {
         p = this.prompt();
         return { say: this.facts(key) + ' ' + p.say, speak: this.facts(key) + ' ' + (p.speak || p.say), input: p.input, chips: p.chips, links: this.linksFor(key) };
       }
@@ -584,9 +585,20 @@
     input.setAttribute('inputmode', kind === 'email' ? 'email' : 'text');
   }
 
+  /* Rank the browser's voices: natural / neural and Google voices sound human, eSpeak-style ones are robotic */
+  function voiceScore(v) {
+    var n = v.name || '', l = v.lang || '', s;
+    if (/^en[-_]IN/i.test(l)) s = 30; else if (/^en[-_](GB|US|AU)/i.test(l)) s = 15; else if (/^en/i.test(l)) s = 8; else return -1;
+    if (/natural|neural/i.test(n)) s += 50;
+    if (/online/i.test(n)) s += 20;
+    if (/google/i.test(n)) s += 25;
+    if (/espeak|compact|festival|robot/i.test(n)) s -= 40;
+    return s;
+  }
   function pickVoice() {
-    var vs = root.speechSynthesis.getVoices() || [];
-    return vs.filter(function (v) { return /^en[-_]IN/i.test(v.lang); })[0] || vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
+    var vs = root.speechSynthesis.getVoices() || [], best = null, bs = -1;
+    for (var i = 0; i < vs.length; i++) { var sc = voiceScore(vs[i]); if (sc > bs) { bs = sc; best = vs[i]; } }
+    return best;
   }
   function speak(text, done) {
     if (!speakOn || !canSpeak || !text) { if (done) done(); return; }
