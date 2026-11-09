@@ -91,6 +91,7 @@ section h2:not(:first-child){margin-top:56px}
 .dot svg{width:26px;height:26px}
 .fi{background:#1dbf73}.fb{background:#1877f2}.social .dot.in{background:#2196c4;border-radius:12px}.yt{background:#f00;border-radius:14px;font-size:1rem}
 .social .dot.gh{background:#24292f}
+.social .dot.x{background:#000;border:1px solid #8a8a8a}
 .ig{background:linear-gradient(45deg,#fd9a1c,#e1306c 55%,#833ab4)}
 
 /* get in touch */

@@ -39,4 +39,5 @@
 .va-links a[data-n="linkedin"]{background:#2196c4;color:#fff}
 .va-links a[data-n="youtube"]{background:#f00;color:#fff}
 .va-links a[data-n="instagram"]{background:linear-gradient(45deg,#fd9a1c,#e1306c 55%,#833ab4);color:#fff}
+.va-links a[data-n="x"]{background:#000;color:#fff;border:1px solid #777}
 .va-links a[data-n="whatsapp"]{background:#08555C;color:#fff}
