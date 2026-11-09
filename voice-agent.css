@@ -8,8 +8,8 @@
 .va-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px;background:var(--va-header);border-bottom:1px solid rgba(255,255,255,.2)}
 .va-head strong{display:block;color:var(--va-accent);font-size:1.05rem}
 .va-head small{display:block;font-size:.78rem;opacity:.9;line-height:1.3}
-.va-tools{display:flex;gap:8px;align-items:center;flex:none}
-.va-speak{border:1px solid #08555C;background:#08555C;color:#fff;border-radius:999px;padding:6px 10px;font:600 .75rem "Space Grotesk",sans-serif;cursor:pointer}
+.va-tools{display:flex;gap:8px;align-items:center;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.va-speak,.va-lang{border:1px solid #08555C;background:#08555C;color:#fff;border-radius:999px;padding:6px 10px;font:600 .75rem "Space Grotesk",sans-serif;cursor:pointer}
 .va-close{width:36px;height:36px;border:0;border-radius:50%;background:#08555C;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}
 .va-log{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:flex;flex-direction:column;gap:10px}
 .va-msg{color:#fff;max-width:88%;padding:10px 14px;border-radius:16px;font-size:.98rem;line-height:1.45;overflow-wrap:anywhere}
@@ -41,3 +41,6 @@
 .va-links a[data-n="instagram"]{background:linear-gradient(45deg,#fd9a1c,#e1306c 55%,#833ab4);color:#fff}
 .va-links a[data-n="x"]{background:#000;color:#fff;border:1px solid #777}
 .va-links a[data-n="whatsapp"]{background:#08555C;color:#fff}
+
+/* Urdu script replies */
+.va-msg[dir="rtl"],.va-status[dir="rtl"],.va-note[dir="rtl"]{text-align:right;font-family:"Noto Naskh Arabic","Segoe UI",Tahoma,Arial,sans-serif;line-height:1.9}
