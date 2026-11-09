@@ -11,6 +11,7 @@
     whatsappDisplay: '0317 1835773',
     whatsappIntl: '923171835773',
     ownerEmail: 'digitalworlddesigns22@gmail.com',
+    collectEmail: true,   // ask for the student's email. Hira then sends the enrollment confirmation from Gmail with one tap.
 
     nextBatch: '',        // e.g. 'Monday, 3 November 2026'. Leave empty if not decided.
     classTiming: '',      // e.g. 'Monday to Friday, 5 pm to 6 pm'
@@ -85,10 +86,55 @@
       ' at ' + at[1].replace(/\./g, ' dot ');
   }
 
+  /* ---- spoken digits ----
+     People say numbers in different ways: "0300", "zero three double zero", "oh three oh oh", "O3OO",
+     "double three", "sifar teen". This turns all of those into plain digits. "oh", "o" and "zero" all
+     mean 0. A word like "oh" is only changed when it sits next to real digits, so normal sentences
+     ("oh I paid yesterday") are left alone. */
+  var DIGIT_WORDS = { zero: 0, nought: 0, naught: 0, sifar: 0, siphar: 0, one: 1, ek: 1, aik: 1, two: 2, three: 3, teen: 3,
+    four: 4, char: 4, chaar: 4, five: 5, paanch: 5, panch: 5, six: 6, chhe: 6, chay: 6, seven: 7, saat: 7,
+    eight: 8, aath: 8, nine: 9, nau: 9 };
+  var REPEAT_WORDS = { double: 2, dabal: 2, dubal: 2, triple: 3, tripal: 3 };
+
+  function digitToken(raw) {
+    var t = raw.toLowerCase().replace(/^[^a-z0-9+(]+|[^a-z0-9)]+$/g, '');
+    if (!t) return null;
+    if (/^[+()\d-]+$/.test(t) && /\d/.test(t)) return { d: t, strong: true, plain: true };      // already digits
+    if (/^[0-9o+()-]+$/.test(t) && /\d/.test(t)) return { d: t.replace(/o/g, '0'), strong: true };  // "O3OO", "0O"
+    if (DIGIT_WORDS.hasOwnProperty(t)) return { d: String(DIGIT_WORDS[t]), strong: true };
+    if (t === 'oh' || /^o+$/.test(t)) return { d: t === 'oh' ? '0' : t.replace(/o/g, '0'), strong: false };   // "oh", "o", "oo"
+    if (t === 'do') return { d: '2', strong: false };      // Roman Urdu "do" = 2, only counted next to other digits
+    return null;
+  }
+
+  function spokenDigits(s) {
+    var toks = String(s).split(/[\s,]+/).filter(Boolean), items = [], i, k, rep, nx;
+    for (i = 0; i < toks.length; i++) {
+      k = digitToken(toks[i]);
+      rep = REPEAT_WORDS[toks[i].toLowerCase().replace(/[^a-z]/g, '')];
+      nx = rep && i + 1 < toks.length ? digitToken(toks[i + 1]) : null;
+      if (rep && nx && !nx.plain) {                       // "double three" -> 33, "triple five" -> 555
+        items.push({ d: new Array(rep + 1).join(nx.d), strong: nx.strong }); i++;
+      } else if (k) items.push({ d: k.d, strong: k.strong, plain: k.plain, raw: toks[i] });
+      else items.push({ text: toks[i] });
+    }
+    var out = [], g = [];
+    function flush() {
+      if (!g.length) return;
+      var strong = g.some(function (x) { return x.strong; }), plain = g.every(function (x) { return x.plain; });
+      if (strong && !plain) out.push(g.map(function (x) { return x.d; }).join(''));
+      else g.forEach(function (x) { out.push(x.raw !== undefined ? x.raw : x.d); });
+      g = [];
+    }
+    items.forEach(function (x) { if (x.text !== undefined) { flush(); out.push(x.text); } else g.push(x); });
+    flush();
+    return out.join(' ');
+  }
+
   /* ---- payment details the student gives after paying ---- */
-  /* WhatsApp number: 0300 1234567, +92 300 1234567, 923001234567 ... -> "+92 300 1234567" */
+  /* WhatsApp number: 0300 1234567, +92 300 1234567, 923001234567, "oh three double zero ..." -> "+92 300 1234567" */
   function parsePhone(s) {
-    var n = String(s).replace(/\D/g, '');
+    var n = spokenDigits(s).replace(/\D/g, '');
     if (n.indexOf('0092') === 0) n = n.slice(2);
     if (n.length === 11 && n.charAt(0) === '0') n = '92' + n.slice(1);
     else if (n.length === 10 && n.charAt(0) === '3') n = '92' + n;
@@ -98,7 +144,7 @@
 
   /* Bank / wallet name plus account number (the last 4 digits are enough) */
   function parseAccount(s) {
-    var t = String(s).replace(/[^A-Za-z0-9 .,\-\/()#'’]/g, ' ').replace(/\s+/g, ' ').trim();
+    var t = spokenDigits(s).replace(/[^A-Za-z0-9 .,\-\/()#'’]/g, ' ').replace(/\s+/g, ' ').trim();
     var digits = (t.match(/\d/g) || []).length;
     if (t.length < 4 || t.length > 60 || digits < 4) return null;
     return t;
@@ -106,7 +152,7 @@
 
   /* Amount in rupees: "5000", "Rs 5,000", "5000 rupees" -> 5000 */
   function parseAmount(s) {
-    var m = String(s).replace(/,/g, '').match(/\d+(\.\d{1,2})?/);
+    var m = spokenDigits(String(s).replace(/,/g, '')).match(/\d+(\.\d{1,2})?/);
     if (!m) return null;
     var v = parseFloat(m[0]);
     if (!(v > 0 && v <= 10000000)) return null;
@@ -168,7 +214,10 @@
   Brain.prototype.ask = function (what) { return what; };
   Brain.prototype.payOn = function () { return payReady(this.cfg); };
 
-  /* Emails are only asked for when EmailJS is really set up. */
+  /* The student's email is asked for whenever collectEmail is on (Hira's confirmation goes out from Gmail). */
+  Brain.prototype.askEmail = function () { return this.cfg.collectEmail !== false; };
+
+  /* Automatic sending from the website only happens when EmailJS is really set up. */
   Brain.prototype.emailOn = function () {
     var k = this.cfg.emailjs || {};
     return !!(k.publicKey && k.serviceId && k.studentTemplateId);
@@ -198,7 +247,7 @@
       case 'requirements':
         return 'To join you need ' + c.requirements.slice(0, -1).join(', ') + ', and ' + c.requirements[c.requirements.length - 1] + '. If you have not installed Zoom yet, please download it from the official Zoom website or your app store before the first class.';
       case 'enroll':
-        return 'Enrolling takes three steps. First, I note the student’s name and age' + (this.emailOn() ? ' and an email address, and send a confirmation email' : '') + '. Second, you pay the course fee' + (this.payOn() ? ' to the account I show you' : '') + '. Third, you tell me “I have paid”, I ask for your WhatsApp number, the account you paid from and the amount, and then prepare a full message for ' + c.ownerName + ' on ' + wa + ', where you attach the payment slip. Would you like to enroll now?';
+        return 'Enrolling takes three steps. First, I note the student’s name and age' + (this.askEmail() ? ' and an email address for the enrollment confirmation' : '') + '. Second, you pay the course fee' + (this.payOn() ? ' to the account I show you' : '') + '. Third, you tell me “I have paid”, I ask for your WhatsApp number, the account you paid from and the amount, and then prepare a full message for ' + c.ownerName + ' on ' + wa + ', where you attach the payment slip. Once ' + c.ownerName + ' has checked the slip, she sends your enrollment confirmation email. Would you like to enroll now?';
       case 'social':
         return 'You can find ' + c.ownerName + ' online on ' + c.social.map(function (s) { return s.name; }).join(', ').replace(/, ([^,]*)$/, ' and $1') + '. I have shown the links below, so you can tap one to open it.';
       case 'contact':
@@ -223,10 +272,10 @@
     return null;
   };
 
-  Brain.prototype.fixOptions = function () { return this.emailOn() ? ['Name', 'Age', 'Email'] : ['Name', 'Age']; };
+  Brain.prototype.fixOptions = function () { return this.askEmail() ? ['Name', 'Age', 'Email'] : ['Name', 'Age']; };
 
   Brain.prototype.prompt = function () {
-    var d = this.data, on = this.emailOn(), minor = d.age !== undefined && d.age < 18;
+    var d = this.data, on = this.askEmail(), minor = d.age !== undefined && d.age < 18;
     switch (this.state) {
       case 'name': return { say: 'What is the student’s full name?', input: 'text' };
       case 'age': return { say: 'How old is the student?', input: 'text' };
@@ -265,7 +314,7 @@
     /* "did you receive it?", "is my seat confirmed?" */
     if (STATUS.test(t)) {
       return slip
-        ? { say: 'I cannot see WhatsApp messages, so I cannot confirm receipt myself. ' + c.ownerName + ' will check your payment and reply to you on WhatsApp. If you do not hear back, message her again on ' + wa + '.', whatsapp: this.paid ? this.waPayLink() : null, whatsappLabel: 'Open the message for Hira again', chips: this.chipsFor() }
+        ? { say: 'I cannot see WhatsApp messages, so I cannot confirm receipt myself. ' + c.ownerName + ' will check your payment, reply to you on WhatsApp and send you an enrollment confirmation email. If you do not hear back, message her again on ' + wa + '.', whatsapp: this.paid ? this.waPayLink() : null, whatsappLabel: 'Open the message for Hira again', chips: this.chipsFor() }
         : { say: 'I have the student’s details, but I do not know yet that the fee was paid. Please ' + slipStep, chips: chipsAwait };
     }
     /* "I have paid" / "I already sent it" (but not "I have not paid yet") */
@@ -282,7 +331,7 @@
     /* "what's next?" depends on how far the student has come */
     if (NEXT.test(t)) {
       return slip
-        ? { say: 'You have shared your payment details, so now ' + c.ownerName + ' will check them and reply to you on WhatsApp. Meanwhile, please make sure the Zoom app is installed and working.', chips: this.chipsFor() }
+        ? { say: 'You have shared your payment details, so now ' + c.ownerName + ' will check them, reply to you on WhatsApp and send you an enrollment confirmation email. Meanwhile, please make sure the Zoom app is installed and working.', chips: this.chipsFor() }
         : { say: 'You have already given the student’s details, so the next step is to ' + slipStep + ' Please also get the Zoom app ready.', chips: chipsAwait };
     }
     return null;
@@ -317,7 +366,7 @@
       var looksLikeAnswer = (this.state === 'age' && parseAge(t) !== null) ||
         (this.state === 'email' && (/@|\bat\b/i.test(t) && /\bdot\b|\./i.test(t))) ||
         (this.state === 'confirm' && (YES.test(t) || NO.test(t))) ||
-        (/^pay(Wa|Acct|Amt)$/.test(this.state) && /\d/.test(t)) ||
+        (/^pay(Wa|Acct|Amt)$/.test(this.state) && /\d/.test(spokenDigits(t))) ||
         (this.state === 'payConfirm' && (YES.test(t) || NO.test(t)));
       var looksLikeQuestion = /\?\s*$|^(what|when|where|how|why|who|which|can|could|do|does|is|are|will|tell me|kab|kya|kitn|kaise)\b/i.test(t) || /^(about hira|next batch|requirements|age criteria|social media|how to enroll|fee|course fee|what’s next\?)$/i.test(t);
       if (key && ['batch', 'fee', 'age', 'requirements', 'about', 'course', 'contact', 'social'].indexOf(key) > -1 && !looksLikeAnswer && looksLikeQuestion) {
@@ -345,7 +394,7 @@
       }
       this.data.age = age;
       if (this.fixing) { this.fixing = false; this.state = 'confirm'; }
-      else this.state = this.emailOn() ? 'email' : 'confirm';
+      else this.state = this.askEmail() ? 'email' : 'confirm';
       return this.prompt();
     }
 
@@ -364,7 +413,7 @@
       }
       if (NO.test(t)) {
         this.state = 'fix';
-        return { say: 'No problem. Which one should I change: ' + (this.emailOn() ? 'the name, the age or the email?' : 'the name or the age?'), chips: this.fixOptions() };
+        return { say: 'No problem. Which one should I change: ' + (this.askEmail() ? 'the name, the age or the email?' : 'the name or the age?'), chips: this.fixOptions() };
       }
       return { say: 'Please say yes to confirm, or no to change something.', chips: ['Yes, confirm', 'No, change'] };
     }
@@ -372,8 +421,8 @@
     if (this.state === 'fix') {
       if (/name/i.test(t)) this.state = 'name';
       else if (/age/i.test(t)) this.state = 'age';
-      else if (/mail/i.test(t) && this.emailOn()) this.state = 'email';
-      else return { say: this.emailOn() ? 'Please say name, age or email.' : 'Please say name or age.', chips: this.fixOptions() };
+      else if (/mail/i.test(t) && this.askEmail()) this.state = 'email';
+      else return { say: this.askEmail() ? 'Please say name, age or email.' : 'Please say name or age.', chips: this.fixOptions() };
       var back = this.prompt(); this.fixing = true; return back;
     }
 
@@ -401,7 +450,7 @@
       if (YES.test(t) && !NO.test(t)) {
         this.state = 'idle'; this.progress = 'slip_sent';
         this.paid = { wa: this.payData.wa, acct: this.payData.acct, amt: this.payData.amt };
-        return { say: 'Thank you! The full message for ' + this.cfg.ownerName + ' is ready: student details, course, and your payment details. Tap the button below. WhatsApp will open with the message, then please attach the payment slip picture and send it. ' + this.cfg.ownerName + ' will check it and reply to you there.',
+        return { say: 'Thank you! The full message for ' + this.cfg.ownerName + ' is ready: student details, course, and your payment details. Tap the button below. WhatsApp will open with the message, then please attach the payment slip picture and send it. ' + this.cfg.ownerName + ' will check it, reply to you there' + (this.enrolled && this.enrolled.email ? ' and send an enrollment confirmation email to ' + this.enrolled.email : '') + '.',
           whatsapp: this.waPayLink(), whatsappLabel: 'Send details to Hira on WhatsApp', chips: ['What’s next?', 'Requirements', 'Next batch'] };
       }
       if (NO.test(t)) {
@@ -465,9 +514,12 @@
     lines.push('',
       'Amount paid: ' + formatMoney(p.amt),
       'Slip sent from WhatsApp number: ' + p.wa,
-      'Paid from account: ' + p.acct,
-      '',
-      'I am attaching the fee payment slip below.');
+      'Paid from account: ' + p.acct);
+    if (e.email) {      // one tap for Hira: opens Gmail with the enrollment confirmation already written
+      var ce = confirmEmailTexts(c, e);
+      lines.push('', 'For ' + c.ownerName + ': after checking the payment, tap this link and press Send in Gmail to confirm the enrollment by email:', gmailLink(e.email, ce.subject, ce.body));
+    }
+    lines.push('', 'I am attaching the fee payment slip below.');
     return WA_LINK + '?text=' + encodeURIComponent(lines.join('\n'));
   };
 
@@ -479,7 +531,7 @@
     if (res.studentSent) {
       parts.push('Done! I have sent a confirmation email to ' + d.email + '. Please check your inbox and spam folder.');
     } else if (res.noEmail) {
-      parts.push('Thank you! I have noted the details. Student name: ' + d.name + ', age: ' + d.age + '.');
+      parts.push('Thank you! I have noted the details. Student name: ' + d.name + ', age: ' + d.age + (d.email ? ', email: ' + d.email : '') + '.');
     } else {
       parts.push('I have noted the details, but I could not send the confirmation email from here. Do not worry, I will put all the details into the WhatsApp message for ' + c.ownerName + ' later, so you do not need to type them again.');
     }
@@ -496,6 +548,23 @@
   };
 
   /* ---------- emails ---------- */
+  /* The enrollment confirmation that Hira sends once she has checked the payment */
+  function confirmEmailTexts(cfg, e) {
+    var minor = e.age < 18;
+    var body = 'Assalam o Alaikum,\n\n' +
+      (minor ? 'We are happy to confirm that ' + e.name + ' is now enrolled' : 'Congratulations ' + e.name + '! You are now enrolled') +
+      ' in the ' + cfg.course + '. We have received the course fee.' +
+      (cfg.nextBatch ? '\n\nNext batch: ' + cfg.nextBatch + (cfg.classTiming ? ' (' + cfg.classTiming + ')' : '') : '') +
+      '\n\nFurther details about the course, such as the class schedule and the Zoom link, will be shared with you by SMS, WhatsApp or email. Please keep the Zoom app installed and ready.' +
+      '\n\nIf you have any questions, message ' + cfg.ownerName + ' on WhatsApp at ' + cfg.whatsappDisplay + '.' +
+      '\n\nRegards,\n' + cfg.ownerName + '\nDigital World Designs';
+    return { subject: 'Enrollment confirmed: ' + cfg.course, body: body };
+  }
+  /* A Gmail "compose" link: opens a ready-to-send email, nothing is sent until Hira presses Send */
+  function gmailLink(to, subject, body) {
+    return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(to) + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  }
+
   function emailTexts(cfg, d) {
     var minor = d.age < 18;
     var lines = ['Student name: ' + d.name, 'Student age: ' + d.age, (minor ? 'Parent or guardian email: ' : 'Email: ') + d.email];
@@ -540,8 +609,8 @@
   }
 
   /* expose for tests */
-  root.CourseAgentCore = { Brain: Brain, CFG: CFG, parseAge: parseAge, parseEmail: parseEmail, cleanName: cleanName, spellEmail: spellEmail, emailTexts: emailTexts,
-    parsePhone: parsePhone, parseAccount: parseAccount, parseAmount: parseAmount, formatRs: formatRs, formatMoney: formatMoney, feeText: feeText, payReady: payReady };
+  root.CourseAgentCore = { Brain: Brain, CFG: CFG, parseAge: parseAge, parseEmail: parseEmail, cleanName: cleanName, spellEmail: spellEmail, emailTexts: emailTexts, confirmEmailTexts: confirmEmailTexts, gmailLink: gmailLink,
+    spokenDigits: spokenDigits, parsePhone: parsePhone, parseAccount: parseAccount, parseAmount: parseAmount, formatRs: formatRs, formatMoney: formatMoney, feeText: feeText, payReady: payReady };
   if (typeof document === 'undefined') { if (typeof module !== 'undefined') module.exports = root.CourseAgentCore; return; }
 
   /* ===================== user interface ===================== */
@@ -566,7 +635,7 @@
     '<form class="va-form" autocomplete="off"><button type="button" class="va-mic" aria-pressed="false" aria-label="Talk to the assistant">' + MIC + '</button>' +
     '<input class="va-input" type="text" aria-label="Type your message" placeholder="Type or tap the mic to talk">' +
     '<button type="submit" class="va-send">Send</button></form>' +
-    '<p class="va-note">The details you give here are used only to prepare your enrollment message for Hira on WhatsApp' + (CFG.emailjs && CFG.emailjs.publicKey ? ' and your confirmation email' : '') + '. For students under 18, please use a parent’s email.</p>';
+    '<p class="va-note">The details you give here are used only to prepare your enrollment message for Hira on WhatsApp and for her to send you the enrollment confirmation email. For students under 18, please use a parent’s email.</p>';
   d.body.appendChild(fab); d.body.appendChild(panel);
 
   var log = panel.querySelector('.va-log'), chips = panel.querySelector('.va-chips'), status = panel.querySelector('.va-status'),
@@ -654,7 +723,7 @@
 
   function show(r) {
     bubble('bot', r.say);
-    setChips(r.chips); if (r.input) setInput(r.input); else if (brain.state === 'idle') setInput('text');
+    setChips(r.chips); setInput(r.input || 'text');   // the box is an email box only while an email is being asked for
     if (r.links && r.links.length) {
       var box = el('div', 'va-links');
       r.links.forEach(function (l) {
